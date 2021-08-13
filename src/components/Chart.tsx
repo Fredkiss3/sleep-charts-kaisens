@@ -20,6 +20,11 @@ const SleepChart = () => {
     dates: [],
   });
 
+  const [dateRange, setDateRange] = useState({
+    initialDate: new Date("02/01/2021"),
+    endDate: new Date("02/07/2021"),
+  });
+
   useEffect(() => {
     async function fetchSleepTime() {
       let response = await fetch(
@@ -29,14 +34,20 @@ const SleepChart = () => {
 
       // récupérer seulement les 100 derniers résultats
       const data: SleepData = result
-        .slice(0, 100)
+        .filter(({ timestamp }) => {
+          // console.log(timestamp);
+
+          return (
+            timestamp >= dateRange.initialDate.getTime() &&
+            timestamp <= dateRange.endDate.getTime()
+          );
+        })
         .sort((a, b) => {
           return a.timestamp - b.timestamp;
         })
         .reduce(
           (acc, response) => {
             const { data, timestamp } = response;
-            console.log(data);
 
             const { sleep_duration }: { sleep_duration: number } = JSON.parse(
               data.replaceAll("'", '"')
@@ -60,14 +71,19 @@ const SleepChart = () => {
     }
 
     fetchSleepTime();
-  }, []);
+  }, [dateRange]);
 
   const options = getChartOptions(sleepData.dates);
 
   const sleepSerie = sleepData.serie ?? [];
+
   const lastNightSleepDuration = sleepSerie[sleepSerie.length - 1];
   const averageSleepDuration =
     sleepSerie.reduce((acc, curValue) => acc + curValue, 0) / sleepSerie.length;
+
+  const dateBegin = formatDate(dateRange.initialDate);
+  const dateEnd = formatDate(dateRange.endDate);
+
   return (
     <>
       <div className="container">
@@ -86,14 +102,53 @@ const SleepChart = () => {
             height={320}
           />
         </div>
+        <div className="mb-3">
+          <div className="row">
+            <div className="col-6">
+              <label htmlFor="dateBegin" className="form-label">
+                From :
+              </label>
+              <input
+                defaultValue={dateBegin}
+                type="date"
+                className="form-control"
+                id="dateBegin"
+                onChange={(ev) => {
+                  setDateRange((oldRange) => ({
+                    ...oldRange,
+                    initialDate: new Date(ev.target.value),
+                  }));
+                }}
+              />
+            </div>
 
+            <div className="col-6">
+              <label htmlFor="dateEnd" className="form-label">
+                To :
+              </label>
+              <input
+                type="date"
+                defaultValue={dateEnd}
+                className="form-control"
+                id="dateEnd"
+                onChange={(ev) => {
+                  setDateRange((oldRange) => ({
+                    ...oldRange,
+                    endDate: new Date(ev.target.value),
+                  }));
+                }}
+              />
+            </div>
+          </div>
+        </div>
         <div>
           <small>
             Last Night Sleep Duration : <b>{lastNightSleepDuration} Hours</b>
           </small>
           <br />
           <small>
-            Average Sleep Duration : <b>{averageSleepDuration} Hours</b>
+            Average Sleep Duration :{" "}
+            <b>{averageSleepDuration.toFixed(2)} Hours</b>
           </small>
         </div>
       </div>
@@ -102,6 +157,12 @@ const SleepChart = () => {
 };
 
 export default SleepChart;
+
+function formatDate(date: Date): string {
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
+}
 
 function getChartOptions(categories: string[]) {
   const options = {
